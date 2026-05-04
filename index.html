@@ -3,47 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Tree Monitor</title>
+    <title>Air Quality Mobile</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #f0f2f5; padding: 20px; color: #333; }
-        .container { max-width: 1000px; margin: auto; }
+        /* Base Styles */
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; text-align: center; background: #f0f2f5; padding: 10px; color: #333; margin: 0; }
+        .container { max-width: 1000px; margin: auto; padding: 10px; }
         
-        /* Grid for eCO2 and TVOC rows */
-        .metrics-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .header-section { margin-bottom: 20px; }
+        #live-date { font-size: 0.9rem; color: #666; margin-top: 5px; }
+
+        /* Metrics Grid: 2 columns on desktop, 1 on mobile */
+        .metrics-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px; }
         
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-        .current-val { font-size: 3rem; font-weight: 800; margin: 10px 0; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        .current-val { font-size: 2.8rem; font-weight: 800; margin: 5px 0; }
         
-        /* Comparison Row Styling */
-        .comparison-row { display: flex; justify-content: space-around; border-top: 1px solid #eee; pt: 15px; margin-top: 15px; }
-        .comp-item { flex: 1; font-size: 0.95rem; padding: 5px; }
-        .label { display: block; font-size: 0.8rem; color: #777; margin-bottom: 3px; }
+        /* Comparison Row */
+        .comparison-row { display: flex; justify-content: space-around; border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px; }
+        .comp-item { flex: 1; font-size: 0.9rem; }
+        .label { display: block; font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
         
         .improvement { color: #27ae60; font-weight: bold; }
         .decline { color: #e74c3c; font-weight: bold; }
         
-        .chart-container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-        h1 { margin-bottom: 30px; font-weight: 300; letter-spacing: 1px; }
+        .chart-container { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); position: relative; height: 300px; }
+
+        /* MOBILE OPTIMIZATIONS */
+        @media (max-width: 600px) {
+            .current-val { font-size: 2.2rem; }
+            .metrics-container { grid-template-columns: 1fr; }
+            h1 { font-size: 1.5rem; }
+            .chart-container { height: 250px; }
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>liquid tree air quality</h1>
+        <div class="header-section">
+            <h1>Air Intelligence</h1>
+            <div id="live-date">Loading date...</div>
+        </div>
 
         <div class="metrics-container">
             <!-- eCO2 Card -->
             <div class="card">
-                <h3 style="color: #ff6384;">eCO2 (ppm)</h3>
+                <h3 style="color: #ff6384; margin: 0;">eCO2 (ppm)</h3>
                 <div id="eco2-now" class="current-val">--</div>
                 <div class="comparison-row">
                     <div class="comp-item">
-                        <span class="label">compared to 1 Hour Ago</span>
+                        <span class="label">1H Change</span>
                         <div id="eco2-1h">--</div>
                     </div>
                     <div class="comp-item" style="border-left: 1px solid #eee;">
-                        <span class="label">compared to 24 Hours Ago</span>
+                        <span class="label">24H Change</span>
                         <div id="eco2-24h">--</div>
                     </div>
                 </div>
@@ -51,15 +65,15 @@
 
             <!-- TVOC Card -->
             <div class="card">
-                <h3 style="color: #36a2eb;">TVOC (ppb)</h3>
+                <h3 style="color: #36a2eb; margin: 0;">TVOC (ppb)</h3>
                 <div id="tvoc-now" class="current-val">--</div>
                 <div class="comparison-row">
                     <div class="comp-item">
-                        <span class="label">compared to 1 Hour Ago</span>
+                        <span class="label">1H Change</span>
                         <div id="tvoc-1h">--</div>
                     </div>
                     <div class="comp-item" style="border-left: 1px solid #eee;">
-                        <span class="label">compared to 24 Hours Ago</span>
+                        <span class="label">24H Change</span>
                         <div id="tvoc-24h">--</div>
                     </div>
                 </div>
@@ -75,6 +89,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
 
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyAtjeTLHgn9_Hq8inNTLv74dNb8mjWLXT4",
             authDomain: "liquid-tree.firebaseapp.com",
@@ -88,18 +103,23 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Chart Setup
+        // Chart with Mobile-friendly settings
         const ctx = document.getElementById('airChart').getContext('2d');
         const airChart = new Chart(ctx, {
             type: 'line',
             data: { labels: [], datasets: [
-                { label: 'eCO2', borderColor: '#ff6384', backgroundColor: 'rgba(255,99,132,0.1)', fill: true, data: [], yAxisID: 'y', tension: 0.4 },
-                { label: 'TVOC', borderColor: '#36a2eb', backgroundColor: 'rgba(54,162,235,0.1)', fill: true, data: [], yAxisID: 'y1', tension: 0.4 }
+                { label: 'eCO2', borderColor: '#ff6384', backgroundColor: 'rgba(255,99,132,0.1)', fill: true, data: [], yAxisID: 'y', tension: 0.4, pointRadius: 0 },
+                { label: 'TVOC', borderColor: '#36a2eb', backgroundColor: 'rgba(54,162,235,0.1)', fill: true, data: [], yAxisID: 'y1', tension: 0.4, pointRadius: 0 }
             ]},
-            options: { responsive: true, scales: { 
-                y: { position: 'left', title: { display: true, text: 'ppm' } },
-                y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'ppb' } }
-            }}
+            options: { 
+                maintainAspectRatio: false,
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { 
+                    y: { position: 'left', ticks: { size: 10 } },
+                    y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { size: 10 } }
+                }
+            }
         });
 
         const sensorRef = ref(db, 'env_monitor');
@@ -111,30 +131,25 @@
             const tsKeys = Object.keys(data).sort();
             const latestTs = parseInt(tsKeys[tsKeys.length - 1]);
             
-            // Current Values
+            // Display Current Date/Time
+            const now = new Date(latestTs * 1000);
+            document.getElementById('live-date').innerText = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            // Update Current Values
             const curEco2 = data[latestTs].eco2;
             const curTvoc = data[latestTs].tvoc;
-
             document.getElementById('eco2-now').innerText = curEco2;
             document.getElementById('tvoc-now').innerText = curTvoc;
 
-            // Find Historical Data (1h = 3600s, 24h = 86400s)
-            const historical = {
-                eco2_1h: findNearest(data, tsKeys, latestTs - 3600),
-                eco2_24h: findNearest(data, tsKeys, latestTs - 86400),
-                tvoc_1h: findNearest(data, tsKeys, latestTs - 3600, 'tvoc'),
-                tvoc_24h: findNearest(data, tsKeys, latestTs - 86400, 'tvoc')
-            };
+            // Historical Comparisons
+            updateUI('eco2-1h', curEco2, findNearest(data, tsKeys, latestTs - 3600, 'eco2'));
+            updateUI('eco2-24h', curEco2, findNearest(data, tsKeys, latestTs - 86400, 'eco2'));
+            updateUI('tvoc-1h', curTvoc, findNearest(data, tsKeys, latestTs - 3600, 'tvoc'));
+            updateUI('tvoc-24h', curTvoc, findNearest(data, tsKeys, latestTs - 86400, 'tvoc'));
 
-            // Update UI Comparisons
-            updateUI('eco2-1h', curEco2, historical.eco2_1h);
-            updateUI('eco2-24h', curEco2, historical.eco2_24h);
-            updateUI('tvoc-1h', curTvoc, historical.tvoc_1h);
-            updateUI('tvoc-24h', curTvoc, historical.tvoc_24h);
-
-            // Graph update (last 50 points)
+            // Graph Data (Fewer points for mobile performance)
             const labels = [], d1 = [], d2 = [];
-            tsKeys.slice(-50).forEach(k => {
+            tsKeys.slice(-40).forEach(k => {
                 labels.push(new Date(k * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
                 d1.push(data[k].eco2);
                 d2.push(data[k].tvoc);
@@ -145,7 +160,7 @@
             airChart.update();
         });
 
-        function findNearest(data, keys, target, type = 'eco2') {
+        function findNearest(data, keys, target, type) {
             for (let i = keys.length - 1; i >= 0; i--) {
                 if (parseInt(keys[i]) <= target) return data[keys[i]][type];
             }
@@ -155,15 +170,9 @@
         function updateUI(id, current, past) {
             const el = document.getElementById(id);
             if (past === null) { el.innerText = "---"; return; }
-            
             const diff = ((current - past) / past) * 100;
             const absDiff = Math.abs(diff).toFixed(1);
-            
-            if (diff <= 0) {
-                el.innerHTML = `<span class="improvement">↓ ${absDiff}%</span>`;
-            } else {
-                el.innerHTML = `<span class="decline">↑ ${absDiff}%</span>`;
-            }
+            el.innerHTML = diff <= 0 ? `<span class="improvement">↓ ${absDiff}%</span>` : `<span class="decline">↑ ${absDiff}%</span>`;
         }
     </script>
 </body>
