@@ -1,182 +1,150 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>pohon cair</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; padding: 10px; color: #333; margin: 0; }
-        .container { max-width: 1100px; margin: auto; padding: 10px; }
-        
-        .header { margin-bottom: 25px; display: flex; flex-direction: column; align-items: center; }
-        #live-date { font-size: 0.9rem; color: #666; margin-top: 5px; font-weight: 500; }
-        .update-badge { background: #e8f0fe; color: #1a73e8; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; margin-top: 8px; border: 1px solid #d2e3fc; }
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
 
-        .metrics-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); }
-        .current-val { font-size: 2.5rem; font-weight: 800; margin: 5px 0; }
-        
-        .comparison-row { display: flex; justify-content: space-around; border-top: 1px solid #f1f1f1; padding-top: 15px; margin-top: 15px; }
-        .comp-item { flex: 1; font-size: 0.85rem; }
-        .label { display: block; font-size: 0.7rem; color: #999; text-transform: uppercase; letter-spacing: 0.8px; }
-        
-        .improvement { color: #2ecc71; font-weight: bold; }
-        .decline { color: #e74c3c; font-weight: bold; }
-        
-        /* Graph Layout */
-        .charts-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
-        .chart-box { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); height: 320px; position: relative; }
+    const firebaseConfig = {
+        apiKey: "AIzaSyAtjeTLHgn9_Hq8inNTLv74dNb8mjWLXT4",
+        authDomain: "liquid-tree.firebaseapp.com",
+        projectId: "liquid-tree",
+        databaseURL: "https://liquid-tree-default-rtdb.asia-southeast1.firebasedatabase.app/",
+        storageBucket: "liquid-tree.firebasestorage.app",
+        messagingSenderId: "64119648120",
+        appId: "1:64119648120:web:75c8784c14e996019ba28d"
+    };
 
-        @media (min-width: 900px) {
-            .charts-grid { grid-template-columns: 1fr 1fr; }
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // --- Vertical Line Plugin ---
+    const verticalLinePlugin = {
+        id: 'verticalLine',
+        afterDraw: (chart) => {
+            if (chart.tooltip?._active?.length) {
+                const x = chart.tooltip._active[0].element.x;
+                const yAxis = chart.scales.y;
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(x, yAxis.top);
+                ctx.lineTo(x, yAxis.bottom);
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = '#999'; // Color of the vertical line
+                ctx.setLineDash([5, 5]); // Dashed line effect
+                ctx.stroke();
+                ctx.restore();
+            }
         }
-    </style>
-</head>
-<body>
+    };
 
-    <div class="container">
-        <div class="header">
-            <h1 style="margin: 0; letter-spacing: -0.5px;">monitor kualitas udara pohon cair</h1>
-            <div id="live-date">Syncing...</div>
-            <div id="last-sync" class="update-badge">Last Update: --</div>
-        </div>
+    // Shared Chart Options for Hover Effect
+    const sharedOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+            mode: 'index',      // Shows data for all datasets at that X-axis point
+            intersect: false,   // Line follows mouse even if not touching a point
+        },
+        plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                titleColor: '#333',
+                bodyColor: '#666',
+                borderColor: '#ddd',
+                borderWidth: 1,
+                padding: 10,
+                displayColors: true
+            }
+        }
+    };
 
-        <!-- Metric Cards -->
-        <div class="metrics-container">
-            <div class="card">
-                <h3 style="color: #ff6384; margin: 0; font-size: 1rem;">eCO2 (ppm)</h3>
-                <div id="eco2-now" class="current-val">--</div>
-                <div class="comparison-row">
-                    <div class="comp-item"><span class="label">1H Change</span><div id="eco2-1h">--</div></div>
-                    <div class="comp-item" style="border-left:1px solid #eee"><span class="label">24H Change</span><div id="eco2-24h">--</div></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3 style="color: #36a2eb; margin: 0; font-size: 1rem;">TVOC (ppb)</h3>
-                <div id="tvoc-now" class="current-val">--</div>
-                <div class="comparison-row">
-                    <div class="comp-item"><span class="label">1H Change</span><div id="tvoc-1h">--</div></div>
-                    <div class="comp-item" style="border-left:1px solid #eee"><span class="label">24H Change</span><div id="tvoc-24h">--</div></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Two Graphs Side-by-Side (on Desktop) -->
-        <div class="charts-grid">
-            <div class="chart-box">
-                <canvas id="gasChart"></canvas>
-            </div>
-            <div class="chart-box">
-                <canvas id="thChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyAtjeTLHgn9_Hq8inNTLv74dNb8mjWLXT4",
-            authDomain: "liquid-tree.firebaseapp.com",
-            projectId: "liquid-tree",
-            databaseURL: "https://liquid-tree-default-rtdb.asia-southeast1.firebasedatabase.app/",
-            storageBucket: "liquid-tree.firebasestorage.app",
-            messagingSenderId: "64119648120",
-            appId: "1:64119648120:web:75c8784c14e996019ba28d"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        // Chart 1: Gas Levels (eCO2 & TVOC)
-        const gasChart = new Chart(document.getElementById('gasChart').getContext('2d'), {
-            type: 'line',
-            data: { labels: [], datasets: [
-                { label: 'eCO2', borderColor: '#ff6384', backgroundColor: 'rgba(255,99,132,0.05)', fill: true, data: [], yAxisID: 'y', tension: 0.4, pointRadius: 0 },
-                { label: 'TVOC', borderColor: '#36a2eb', backgroundColor: 'rgba(54,162,235,0.05)', fill: true, data: [], yAxisID: 'y1', tension: 0.4, pointRadius: 0 }
-            ]},
-            options: { maintainAspectRatio: false, plugins: { title: { display: true, text: 'Gas Concentration Trends' } }, scales: { 
+    // Chart 1: Gas Levels
+    const gasChart = new Chart(document.getElementById('gasChart').getContext('2d'), {
+        type: 'line',
+        plugins: [verticalLinePlugin], // Attach the crosshair plugin
+        data: { labels: [], datasets: [
+            { label: 'eCO2', borderColor: '#ff6384', backgroundColor: 'rgba(255,99,132,0.05)', fill: true, data: [], yAxisID: 'y', tension: 0.4, pointRadius: 0, pointHoverRadius: 5 },
+            { label: 'TVOC', borderColor: '#36a2eb', backgroundColor: 'rgba(54,162,235,0.05)', fill: true, data: [], yAxisID: 'y1', tension: 0.4, pointRadius: 0, pointHoverRadius: 5 }
+        ]},
+        options: {
+            ...sharedOptions,
+            scales: { 
                 y: { position: 'left', title: { display: true, text: 'ppm' } },
                 y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'ppb' } }
-            }}
-        });
-
-        // Chart 2: Environment (Temp & Humidity)
-        const thChart = new Chart(document.getElementById('thChart').getContext('2d'), {
-            type: 'line',
-            data: { labels: [], datasets: [
-                { label: 'Temp (°C)', borderColor: '#ff9f40', data: [], tension: 0.4, pointRadius: 0 },
-                { label: 'Hum (%)', borderColor: '#4bc0c0', data: [], tension: 0.4, pointRadius: 0 }
-            ]},
-            options: { maintainAspectRatio: false, plugins: { title: { display: true, text: 'Temperature & Humidity' } }, scales: { 
-                y: { title: { display: true, text: 'Value' } }
-            }}
-        });
-
-        const sensorRef = ref(db, 'env_monitor');
-
-        onValue(sensorRef, (snapshot) => {
-            const data = snapshot.val();
-            if (!data) return;
-
-            const tsKeys = Object.keys(data).sort();
-            const latestTs = parseInt(tsKeys[tsKeys.length - 1]);
-            
-            // Header Info
-            const now = new Date(latestTs * 1000);
-            document.getElementById('live-date').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-            document.getElementById('last-sync').innerText = "Last Update: " + now.toLocaleTimeString();
-
-            // Values
-            document.getElementById('eco2-now').innerText = data[latestTs].eco2;
-            document.getElementById('tvoc-now').innerText = data[latestTs].tvoc;
-
-            // Comparisons
-            updateUI('eco2-1h', data[latestTs].eco2, findNearest(data, tsKeys, latestTs - 3600, 'eco2'));
-            updateUI('eco2-24h', data[latestTs].eco2, findNearest(data, tsKeys, latestTs - 86400, 'eco2'));
-            updateUI('tvoc-1h', data[latestTs].tvoc, findNearest(data, tsKeys, latestTs - 3600, 'tvoc'));
-            updateUI('tvoc-24h', data[latestTs].tvoc, findNearest(data, tsKeys, latestTs - 86400, 'tvoc'));
-
-            // Graph Updates (Last 40 readings)
-            const labels = [], g_eco2 = [], g_tvoc = [], g_temp = [], g_hum = [];
-            tsKeys.slice(-40).forEach(k => {
-                labels.push(new Date(k * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
-                g_eco2.push(data[k].eco2);
-                g_tvoc.push(data[k].tvoc);
-                g_temp.push(data[k].temp);
-                g_hum.push(data[k].hum);
-            });
-
-            // Update Gas Chart
-            gasChart.data.labels = labels;
-            gasChart.data.datasets[0].data = g_eco2;
-            gasChart.data.datasets[1].data = g_tvoc;
-            gasChart.update();
-
-            // Update Temp/Hum Chart
-            thChart.data.labels = labels;
-            thChart.data.datasets[0].data = g_temp;
-            thChart.data.datasets[1].data = g_hum;
-            thChart.update();
-        });
-
-        function findNearest(data, keys, target, type) {
-            for (let i = keys.length - 1; i >= 0; i--) {
-                if (parseInt(keys[i]) <= target) return data[keys[i]][type];
             }
-            return null;
         }
+    });
 
-        function updateUI(id, current, past) {
-            const el = document.getElementById(id);
-            if (past === null) { el.innerText = "---"; return; }
-            const diff = ((current - past) / past) * 100;
-            const absDiff = Math.abs(diff).toFixed(1);
-            el.innerHTML = diff <= 0 ? `<span class="improvement">↓ ${absDiff}%</span>` : `<span class="decline">↑ ${absDiff}%</span>`;
+    // Chart 2: Environment
+    const thChart = new Chart(document.getElementById('thChart').getContext('2d'), {
+        type: 'line',
+        plugins: [verticalLinePlugin],
+        data: { labels: [], datasets: [
+            { label: 'Temp (°C)', borderColor: '#ff9f40', data: [], tension: 0.4, pointRadius: 0, pointHoverRadius: 5 },
+            { label: 'Hum (%)', borderColor: '#4bc0c0', data: [], tension: 0.4, pointRadius: 0, pointHoverRadius: 5 }
+        ]},
+        options: {
+            ...sharedOptions,
+            scales: { y: { title: { display: true, text: 'Value' } } }
         }
-    </script>
-</body>
-</html>
+    });
+
+    const sensorRef = ref(db, 'env_monitor');
+
+    onValue(sensorRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        const tsKeys = Object.keys(data).sort();
+        const latestTs = parseInt(tsKeys[tsKeys.length - 1]);
+        
+        // Headers & Comparisons
+        const now = new Date(latestTs * 1000);
+        document.getElementById('live-date').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        document.getElementById('last-sync').innerText = "Last Update: " + now.toLocaleTimeString();
+
+        document.getElementById('eco2-now').innerText = data[latestTs].eco2;
+        document.getElementById('tvoc-now').innerText = data[latestTs].tvoc;
+
+        updateUI('eco2-1h', data[latestTs].eco2, findNearest(data, tsKeys, latestTs - 3600, 'eco2'));
+        updateUI('eco2-24h', data[latestTs].eco2, findNearest(data, tsKeys, latestTs - 86400, 'eco2'));
+        updateUI('tvoc-1h', data[latestTs].tvoc, findNearest(data, tsKeys, latestTs - 3600, 'tvoc'));
+        updateUI('tvoc-24h', data[latestTs].tvoc, findNearest(data, tsKeys, latestTs - 86400, 'tvoc'));
+
+        // Prepare Graph Arrays
+        const labels = [], g_eco2 = [], g_tvoc = [], g_temp = [], g_hum = [];
+        tsKeys.slice(-40).forEach(k => {
+            labels.push(new Date(k * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+            g_eco2.push(data[k].eco2);
+            g_tvoc.push(data[k].tvoc);
+            g_temp.push(data[k].temp);
+            g_hum.push(data[k].hum);
+        });
+
+        // Batch Update
+        gasChart.data.labels = labels;
+        gasChart.data.datasets[0].data = g_eco2;
+        gasChart.data.datasets[1].data = g_tvoc;
+        gasChart.update('none'); // Update without animation for smoothness
+
+        thChart.data.labels = labels;
+        thChart.data.datasets[0].data = g_temp;
+        thChart.data.datasets[1].data = g_hum;
+        thChart.update('none');
+    });
+
+    function findNearest(data, keys, target, type) {
+        for (let i = keys.length - 1; i >= 0; i--) {
+            if (parseInt(keys[i]) <= target) return data[keys[i]][type];
+        }
+        return null;
+    }
+
+    function updateUI(id, current, past) {
+        const el = document.getElementById(id);
+        if (past === null) { el.innerText = "---"; return; }
+        const diff = ((current - past) / past) * 100;
+        const absDiff = Math.abs(diff).toFixed(1);
+        el.innerHTML = diff <= 0 ? `<span class="improvement">↓ ${absDiff}%</span>` : `<span class="decline">↑ ${absDiff}%</span>`;
+    }
+</script>
