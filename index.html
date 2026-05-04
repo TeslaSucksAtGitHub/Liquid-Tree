@@ -1,0 +1,23 @@
+<script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAtjeTLHgn9_Hq8inNTLv74dNb8mjWLXT4",
+  authDomain: "liquid-tree.firebaseapp.com",
+  databaseURL: "https://liquid-tree-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "liquid-tree",
+  storageBucket: "liquid-tree.firebasestorage.app",
+  messagingSenderId: "64119648120",
+  appId: "1:64119648120:web:75c8784c14e996019ba28d",
+  measurementId: "G-9JZ1NLH0BH"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Test read
+db.ref("sensor").on("value", (snapshot) => {
+  console.log(snapshot.val());
+});
+</script>
