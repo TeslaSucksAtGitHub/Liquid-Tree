@@ -3,85 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>liquid tree project</title>
+    <title>pohon cair</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Base Styles */
-        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; text-align: center; background: #f0f2f5; padding: 10px; color: #333; margin: 0; }
-        .container { max-width: 1000px; margin: auto; padding: 10px; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; padding: 10px; color: #333; margin: 0; }
+        .container { max-width: 1100px; margin: auto; padding: 10px; }
         
-        .header-section { margin-bottom: 20px; }
-        #live-date { font-size: 0.9rem; color: #666; margin-top: 5px; }
+        .header { margin-bottom: 25px; display: flex; flex-direction: column; align-items: center; }
+        #live-date { font-size: 0.9rem; color: #666; margin-top: 5px; font-weight: 500; }
+        .update-badge { background: #e8f0fe; color: #1a73e8; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; margin-top: 8px; border: 1px solid #d2e3fc; }
 
-        /* Metrics Grid: 2 columns on desktop, 1 on mobile */
         .metrics-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); }
+        .current-val { font-size: 2.5rem; font-weight: 800; margin: 5px 0; }
         
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-        .current-val { font-size: 2.8rem; font-weight: 800; margin: 5px 0; }
+        .comparison-row { display: flex; justify-content: space-around; border-top: 1px solid #f1f1f1; padding-top: 15px; margin-top: 15px; }
+        .comp-item { flex: 1; font-size: 0.85rem; }
+        .label { display: block; font-size: 0.7rem; color: #999; text-transform: uppercase; letter-spacing: 0.8px; }
         
-        /* Comparison Row */
-        .comparison-row { display: flex; justify-content: space-around; border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px; }
-        .comp-item { flex: 1; font-size: 0.9rem; }
-        .label { display: block; font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .improvement { color: #27ae60; font-weight: bold; }
+        .improvement { color: #2ecc71; font-weight: bold; }
         .decline { color: #e74c3c; font-weight: bold; }
         
-        .chart-container { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); position: relative; height: 300px; }
+        /* Graph Layout */
+        .charts-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .chart-box { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); height: 320px; position: relative; }
 
-        /* MOBILE OPTIMIZATIONS */
-        @media (max-width: 600px) {
-            .current-val { font-size: 2.2rem; }
-            .metrics-container { grid-template-columns: 1fr; }
-            h1 { font-size: 1.5rem; }
-            .chart-container { height: 250px; }
+        @media (min-width: 900px) {
+            .charts-grid { grid-template-columns: 1fr 1fr; }
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div class="header-section">
-            <h1>liquid tree air quality monitor</h1>
-            <div id="live-date">Loading date...</div>
+        <div class="header">
+            <h1 style="margin: 0; letter-spacing: -0.5px;">monitor kualitas udara pohon cair</h1>
+            <div id="live-date">Syncing...</div>
+            <div id="last-sync" class="update-badge">Last Update: --</div>
         </div>
 
+        <!-- Metric Cards -->
         <div class="metrics-container">
-            <!-- eCO2 Card -->
             <div class="card">
-                <h3 style="color: #ff6384; margin: 0;">eCO2 (ppm)</h3>
+                <h3 style="color: #ff6384; margin: 0; font-size: 1rem;">eCO2 (ppm)</h3>
                 <div id="eco2-now" class="current-val">--</div>
                 <div class="comparison-row">
-                    <div class="comp-item">
-                        <span class="label">1H Change</span>
-                        <div id="eco2-1h">--</div>
-                    </div>
-                    <div class="comp-item" style="border-left: 1px solid #eee;">
-                        <span class="label">24H Change</span>
-                        <div id="eco2-24h">--</div>
-                    </div>
+                    <div class="comp-item"><span class="label">1H Change</span><div id="eco2-1h">--</div></div>
+                    <div class="comp-item" style="border-left:1px solid #eee"><span class="label">24H Change</span><div id="eco2-24h">--</div></div>
                 </div>
             </div>
 
-            <!-- TVOC Card -->
             <div class="card">
-                <h3 style="color: #36a2eb; margin: 0;">TVOC (ppb)</h3>
+                <h3 style="color: #36a2eb; margin: 0; font-size: 1rem;">TVOC (ppb)</h3>
                 <div id="tvoc-now" class="current-val">--</div>
                 <div class="comparison-row">
-                    <div class="comp-item">
-                        <span class="label">1H Change</span>
-                        <div id="tvoc-1h">--</div>
-                    </div>
-                    <div class="comp-item" style="border-left: 1px solid #eee;">
-                        <span class="label">24H Change</span>
-                        <div id="tvoc-24h">--</div>
-                    </div>
+                    <div class="comp-item"><span class="label">1H Change</span><div id="tvoc-1h">--</div></div>
+                    <div class="comp-item" style="border-left:1px solid #eee"><span class="label">24H Change</span><div id="tvoc-24h">--</div></div>
                 </div>
             </div>
         </div>
 
-        <div class="chart-container">
-            <canvas id="airChart"></canvas>
+        <!-- Two Graphs Side-by-Side (on Desktop) -->
+        <div class="charts-grid">
+            <div class="chart-box">
+                <canvas id="gasChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <canvas id="thChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -89,7 +78,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
 
-        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyAtjeTLHgn9_Hq8inNTLv74dNb8mjWLXT4",
             authDomain: "liquid-tree.firebaseapp.com",
@@ -103,23 +91,29 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Chart with Mobile-friendly settings
-        const ctx = document.getElementById('airChart').getContext('2d');
-        const airChart = new Chart(ctx, {
+        // Chart 1: Gas Levels (eCO2 & TVOC)
+        const gasChart = new Chart(document.getElementById('gasChart').getContext('2d'), {
             type: 'line',
             data: { labels: [], datasets: [
-                { label: 'eCO2', borderColor: '#ff6384', backgroundColor: 'rgba(255,99,132,0.1)', fill: true, data: [], yAxisID: 'y', tension: 0.4, pointRadius: 0 },
-                { label: 'TVOC', borderColor: '#36a2eb', backgroundColor: 'rgba(54,162,235,0.1)', fill: true, data: [], yAxisID: 'y1', tension: 0.4, pointRadius: 0 }
+                { label: 'eCO2', borderColor: '#ff6384', backgroundColor: 'rgba(255,99,132,0.05)', fill: true, data: [], yAxisID: 'y', tension: 0.4, pointRadius: 0 },
+                { label: 'TVOC', borderColor: '#36a2eb', backgroundColor: 'rgba(54,162,235,0.05)', fill: true, data: [], yAxisID: 'y1', tension: 0.4, pointRadius: 0 }
             ]},
-            options: { 
-                maintainAspectRatio: false,
-                responsive: true,
-                plugins: { legend: { position: 'bottom' } },
-                scales: { 
-                    y: { position: 'left', ticks: { size: 10 } },
-                    y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { size: 10 } }
-                }
-            }
+            options: { maintainAspectRatio: false, plugins: { title: { display: true, text: 'Gas Concentration Trends' } }, scales: { 
+                y: { position: 'left', title: { display: true, text: 'ppm' } },
+                y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'ppb' } }
+            }}
+        });
+
+        // Chart 2: Environment (Temp & Humidity)
+        const thChart = new Chart(document.getElementById('thChart').getContext('2d'), {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'Temp (°C)', borderColor: '#ff9f40', data: [], tension: 0.4, pointRadius: 0 },
+                { label: 'Hum (%)', borderColor: '#4bc0c0', data: [], tension: 0.4, pointRadius: 0 }
+            ]},
+            options: { maintainAspectRatio: false, plugins: { title: { display: true, text: 'Temperature & Humidity' } }, scales: { 
+                y: { title: { display: true, text: 'Value' } }
+            }}
         });
 
         const sensorRef = ref(db, 'env_monitor');
@@ -131,33 +125,42 @@
             const tsKeys = Object.keys(data).sort();
             const latestTs = parseInt(tsKeys[tsKeys.length - 1]);
             
-            // Display Current Date/Time
+            // Header Info
             const now = new Date(latestTs * 1000);
-            document.getElementById('live-date').innerText = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            document.getElementById('live-date').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            document.getElementById('last-sync').innerText = "Last Update: " + now.toLocaleTimeString();
 
-            // Update Current Values
-            const curEco2 = data[latestTs].eco2;
-            const curTvoc = data[latestTs].tvoc;
-            document.getElementById('eco2-now').innerText = curEco2;
-            document.getElementById('tvoc-now').innerText = curTvoc;
+            // Values
+            document.getElementById('eco2-now').innerText = data[latestTs].eco2;
+            document.getElementById('tvoc-now').innerText = data[latestTs].tvoc;
 
-            // Historical Comparisons
-            updateUI('eco2-1h', curEco2, findNearest(data, tsKeys, latestTs - 3600, 'eco2'));
-            updateUI('eco2-24h', curEco2, findNearest(data, tsKeys, latestTs - 86400, 'eco2'));
-            updateUI('tvoc-1h', curTvoc, findNearest(data, tsKeys, latestTs - 3600, 'tvoc'));
-            updateUI('tvoc-24h', curTvoc, findNearest(data, tsKeys, latestTs - 86400, 'tvoc'));
+            // Comparisons
+            updateUI('eco2-1h', data[latestTs].eco2, findNearest(data, tsKeys, latestTs - 3600, 'eco2'));
+            updateUI('eco2-24h', data[latestTs].eco2, findNearest(data, tsKeys, latestTs - 86400, 'eco2'));
+            updateUI('tvoc-1h', data[latestTs].tvoc, findNearest(data, tsKeys, latestTs - 3600, 'tvoc'));
+            updateUI('tvoc-24h', data[latestTs].tvoc, findNearest(data, tsKeys, latestTs - 86400, 'tvoc'));
 
-            // Graph Data (Fewer points for mobile performance)
-            const labels = [], d1 = [], d2 = [];
+            // Graph Updates (Last 40 readings)
+            const labels = [], g_eco2 = [], g_tvoc = [], g_temp = [], g_hum = [];
             tsKeys.slice(-40).forEach(k => {
                 labels.push(new Date(k * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
-                d1.push(data[k].eco2);
-                d2.push(data[k].tvoc);
+                g_eco2.push(data[k].eco2);
+                g_tvoc.push(data[k].tvoc);
+                g_temp.push(data[k].temp);
+                g_hum.push(data[k].hum);
             });
-            airChart.data.labels = labels;
-            airChart.data.datasets[0].data = d1;
-            airChart.data.datasets[1].data = d2;
-            airChart.update();
+
+            // Update Gas Chart
+            gasChart.data.labels = labels;
+            gasChart.data.datasets[0].data = g_eco2;
+            gasChart.data.datasets[1].data = g_tvoc;
+            gasChart.update();
+
+            // Update Temp/Hum Chart
+            thChart.data.labels = labels;
+            thChart.data.datasets[0].data = g_temp;
+            thChart.data.datasets[1].data = g_hum;
+            thChart.update();
         });
 
         function findNearest(data, keys, target, type) {
