@@ -87,7 +87,7 @@
                 🌱 Analisis Dampak Mikroalga (Microalgae Performance)
             </h3>
             <p style="font-size: 0.85rem; color: #666; margin: 5px 0 15px 0;">
-                Membandingkan data sebelum (Pre-Algae) dan sesudah instalasi mikroalga pada <strong>04 Mei 2026 pukul 15:00</strong>.
+                Membandingkan data sebelum (Pre-Algae) dan sesudah instalasi mikroalga pada <strong>02 Juni 2026 pukul 15:00</strong>.
             </p>
             <div class="impact-grid">
                 <div class="impact-sub-card title-block">
@@ -157,12 +157,11 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Global storage for processing full historical lookups across pickers
         let databaseCachedBackup = null;
         let databaseIsMsFormat = false;
 
-        // Target Date Milestone: 5/4/2026 15:00:00 (May 4th, 2026)
-        const ALGAE_MILESTONE_MS = new Date('2026-05-04T15:00:00').getTime();
+        // UPDATED MILESTONE DATE: June 2nd, 2026 at 15:00:00
+        const ALGAE_MILESTONE_MS = new Date('2026-06-02T15:00:00').getTime();
 
         // Advanced UI: Vertical Hover Line Plugin
         const verticalHoverLinePlugin = {
@@ -222,7 +221,7 @@
             plugins: [verticalHoverLinePlugin]
         });
 
-        // New Chart 3: Day Comparison Stacked Chart
+        // Chart 3: Day Comparison Stacked Chart
         const compareChart = new Chart(document.getElementById('compareChart').getContext('2d'), {
             type: 'line',
             data: { datasets: [
@@ -259,7 +258,7 @@
             const data = snapshot.val();
             if (!data) return;
 
-            databaseCachedBackup = data; // Keep context data for picker triggers
+            databaseCachedBackup = data; 
 
             const tsKeys = Object.keys(data).sort();
             if (tsKeys.length === 0) return;
@@ -269,7 +268,7 @@
             if (!latestRecord) return;
 
             const latestTs = parseInt(latestKey);
-            databaseIsMsFormat = latestTs > 9999999999; // Update global tracking indicator
+            databaseIsMsFormat = latestTs > 9999999999; 
             const now = new Date(databaseIsMsFormat ? latestTs : latestTs * 1000);
             
             // Header Info
@@ -280,7 +279,6 @@
             document.getElementById('eco2-now').innerText = latestRecord.eco2 !== undefined ? latestRecord.eco2 : '--';
             document.getElementById('tvoc-now').innerText = latestRecord.tvoc !== undefined ? latestRecord.tvoc : '--';
 
-            // Scale Time Windows
             const hourOffset = databaseIsMsFormat ? 3600000 : 3600;
             const dayOffset = databaseIsMsFormat ? 86400000 : 86400;
 
@@ -315,17 +313,16 @@
             thChart.data.datasets[1].data = g_hum;
             thChart.update();
 
-            // Run Macroalgae Performance Statistics
+            // Run Microalgae Performance Statistics
             calculateAlgaeImpact(data, tsKeys);
             
-            // Render Initial Stacked Chart Default Date Setup Once
             if(!document.getElementById('compare-date-1').value) {
                 setDefaultDates(tsKeys);
             }
             updateCompareChart();
         });
 
-        // Feature: Process Pre/Post Algae Baselines Dynamically
+        // Dynamic Metric Comparison Pre vs Post Algae
         function calculateAlgaeImpact(data, keys) {
             let preEco2Sum = 0, preEco2Count = 0, postEco2Sum = 0, postEco2Count = 0;
             let preTvocSum = 0, preTvocCount = 0, postTvocSum = 0, postTvocCount = 0;
@@ -363,7 +360,7 @@
             }
         }
 
-        // Feature: Core Stacked Logic mapping arbitrary dates into absolute decimal hour footprints
+        // Overlay Comparison Rendering Engine
         function updateCompareChart() {
             if (!databaseCachedBackup) return;
 
@@ -380,13 +377,11 @@
                 const tsRaw = parseInt(k);
                 const itemDate = new Date(databaseIsMsFormat ? tsRaw : tsRaw * 1000);
                 
-                // Construct standard comparative date tokens (YYYY-MM-DD)
                 const yyyy = itemDate.getFullYear();
                 const mm = String(itemDate.getMonth() + 1).padStart(2, '0');
                 const dd = String(itemDate.getDate()).padStart(2, '0');
                 const localizedDateString = `${yyyy}-${mm}-${dd}`;
 
-                // Continuous decimal representation of time of day (Hour + Minutes/60)
                 const decimalHourCoordinate = itemDate.getHours() + (itemDate.getMinutes() / 60);
 
                 if (localizedDateString === dateStr1) {
@@ -396,7 +391,6 @@
                 }
             });
 
-            // Sort coordinates so the line plots left-to-right cleanly
             dataset1.sort((a, b) => a.x - b.x);
             dataset2.sort((a, b) => a.x - b.x);
 
@@ -409,7 +403,6 @@
 
         function setDefaultDates(keys) {
             if(keys.length === 0) return;
-            // Extrapolate current vs yesterday records based on database footprints
             const maxDate = new Date(databaseIsMsFormat ? parseInt(keys[keys.length-1]) : parseInt(keys[keys.length-1])*1000);
             const prevDate = new Date(maxDate.getTime() - 86400000);
 
@@ -428,6 +421,7 @@
             return null;
         }
 
+        UX: Realtime UI formatting updates
         function updateUI(id, current, past) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -437,7 +431,6 @@
             el.innerHTML = diff <= 0 ? `<span class="improvement">↓ ${absDiff}%</span>` : `<span class="decline">↑ ${absDiff}%</span>`;
         }
 
-        // Attach layout change listeners to trigger automated component canvas draws
         document.getElementById('compare-metric').addEventListener('change', updateCompareChart);
         document.getElementById('compare-date-1').addEventListener('change', updateCompareChart);
         document.getElementById('compare-date-2').addEventListener('change', updateCompareChart);
