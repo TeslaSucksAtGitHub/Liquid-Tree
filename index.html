@@ -13,10 +13,7 @@
         #live-date { font-size: 0.9rem; color: #666; margin-top: 5px; font-weight: 500; }
         .update-badge { background: #e8f0fe; color: #1a73e8; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; margin-top: 8px; border: 1px solid #d2e3fc; }
 
-        .section-title { font-size: 1.1rem; font-weight: 700; margin: 30px 0 15px 0; color: #2c3e50; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
-        .section-title::after { content: ''; flex: 1; height: 1px; background: #ddd; }
-
-        .metrics-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .metrics-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); }
         .current-val { font-size: 2.5rem; font-weight: 800; margin: 5px 0; }
         
@@ -27,28 +24,12 @@
         .improvement { color: #2ecc71; font-weight: bold; }
         .decline { color: #e74c3c; font-weight: bold; }
         
-        /* Algae Impact Styling */
-        .impact-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 25px; }
-        .impact-card { background: linear-gradient(135deg, #e8f5e9, #c8e6c9); border: 1px solid #a5d6a7; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .impact-card.tvoc { background: linear-gradient(135deg, #e3f2fd, #bbdefb); border: 1px solid #90caf9; }
-        .impact-headline { font-size: 1.5rem; font-weight: 800; color: #1b5e20; margin: 10px 0; }
-        .impact-card.tvoc .impact-headline { color: #0d47a1; }
-        .impact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 10px; margin-top: 5px; font-size: 0.85rem; }
-
-        /* Controls Panel */
-        .controls-panel { background: white; padding: 15px 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; margin-bottom: 20px; }
-        .control-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
-        .control-group label { font-size: 0.75rem; font-weight: bold; color: #666; text-transform: uppercase; }
-        .control-group select, .control-group input { padding: 8px 12px; border: 1px solid #ccc; border-radius: 8px; font-family: inherit; font-size: 0.9rem; outline: none; }
-        .control-group select:focus, .control-group input:focus { border-color: #1a73e8; }
-
         /* Graph Layout */
-        .charts-grid { display: grid; grid-template-columns: 1fr; gap: 20px; margin-bottom: 25px; }
+        .charts-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
         .chart-box { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); height: 320px; position: relative; }
 
         @media (min-width: 900px) {
             .charts-grid { grid-template-columns: 1fr 1fr; }
-            .full-width-chart { grid-column: span 2; }
         }
     </style>
 </head>
@@ -61,7 +42,6 @@
             <div id="last-sync" class="update-badge">Last Update: --</div>
         </div>
 
-        <div class="section-title">Live Diagnostics</div>
         <div class="metrics-container">
             <div class="card">
                 <h3 style="color: #ff6384; margin: 0; font-size: 1rem;">eCO2 (ppm)</h3>
@@ -82,59 +62,12 @@
             </div>
         </div>
 
-        <div class="section-title">Microalgae Cultivation Performance</div>
-        <div class="impact-container">
-            <div class="impact-card eco2">
-                <h3 style="color: #2e7d32; margin: 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">eCO2 Net Performance</h3>
-                <div id="algae-eco2-impact" class="impact-headline">Calculating...</div>
-                <div class="impact-grid">
-                    <div><span class="label">Pre-Algae Avg</span><strong id="pre-algae-eco2">--</strong></div>
-                    <div><span class="label">Post-Algae Avg</span><strong id="post-algae-eco2">--</strong></div>
-                </div>
-            </div>
-            <div class="impact-card tvoc">
-                <h3 style="color: #1565c0; margin: 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">TVOC Net Performance</h3>
-                <div id="algae-tvoc-impact" class="impact-headline">Calculating...</div>
-                <div class="impact-grid">
-                    <div><span class="label">Pre-Algae Avg</span><strong id="pre-algae-tvoc">--</strong></div>
-                    <div><span class="label">Post-Algae Avg</span><strong id="post-algae-tvoc">--</strong></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section-title">Real-Time Trends</div>
         <div class="charts-grid">
             <div class="chart-box">
                 <canvas id="gasChart"></canvas>
             </div>
             <div class="chart-box">
                 <canvas id="thChart"></canvas>
-            </div>
-        </div>
-
-        <div class="section-title">Day-over-Day Stacked Comparison</div>
-        <div class="controls-panel">
-            <div class="control-group">
-                <label for="metricSelect">Target Parameter</label>
-                <select id="metricSelect">
-                    <option value="eco2">eCO2 (ppm)</option>
-                    <option value="tvoc">TVOC (ppb)</option>
-                    <option value="temp">Temperature (°C)</option>
-                    <option value="hum">Humidity (%)</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <label for="date1">Baseline Day (Day 1)</label>
-                <input type="date" id="date1">
-            </div>
-            <div class="control-group">
-                <label for="date2">Comparison Day (Day 2)</label>
-                <input type="date" id="date2">
-            </div>
-        </div>
-        <div class="charts-grid">
-            <div class="chart-box full-width-chart">
-                <canvas id="compareChart"></canvas>
             </div>
         </div>
     </div>
@@ -156,14 +89,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Global State Containers
-        let rawSensorData = null;
-        let sortedTimestamps = [];
-
-        // Microalgae Introduction Milestone: May 4, 2026, 15:00 PM Local Time (in Milliseconds)
-        const ALGAE_SWITCH_TIMESTAMP_MS = new Date('2026-05-04T15:00:00').getTime();
-
-        // Chart 1: Real-time Gas Concentration Trends
+        // Chart 1: Gas Levels (eCO2 & TVOC)
         const gasChart = new Chart(document.getElementById('gasChart').getContext('2d'), {
             type: 'line',
             data: { labels: [], datasets: [
@@ -176,7 +102,7 @@
             }}
         });
 
-        // Chart 2: Real-time Ambient Conditions
+        // Chart 2: Environment (Temp & Humidity)
         const thChart = new Chart(document.getElementById('thChart').getContext('2d'), {
             type: 'line',
             data: { labels: [], datasets: [
@@ -188,37 +114,15 @@
             }}
         });
 
-        // Chart 3: Historical Overlay Comparison
-        const compareChart = new Chart(document.getElementById('compareChart').getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00'),
-                datasets: [
-                    { label: 'Day 1 (Select Date)', borderColor: '#9b59b6', backgroundColor: 'rgba(155,89,182,0.05)', data: Array(24).fill(null), tension: 0.3, spanGaps: true },
-                    { label: 'Day 2 (Select Date)', borderColor: '#2ecc71', backgroundColor: 'rgba(46,204,113,0.05)', data: Array(24).fill(null), tension: 0.3, spanGaps: true }
-                ]
-            },
-            options: { 
-                maintainAspectRatio: false, 
-                plugins: { title: { display: true, text: 'Stacked Hourly Trend Analysis Comparison' } },
-                scales: { y: { title: { display: true, text: 'Value' } } }
-            }
-        });
-
-        // Robust Timestamp Parser Engine (Handles Unix Seconds, Milliseconds, and Firebase Push IDs)
+        // Safe parser for alphanumeric Push IDs and variable Unix Timestamps
         function getTimestampMs(key, record) {
             if (/^\d+$/.test(key)) {
                 const num = parseInt(key);
                 return num > 9999999999 ? num : num * 1000;
             }
-            if (record) {
-                const inlineFields = ['timestamp', 'time', 'epoch', 'ts'];
-                for (let f of inlineFields) {
-                    if (record[f] !== undefined && record[f] !== null) {
-                        const num = parseInt(record[f]);
-                        if (!isNaN(num)) return num > 9999999999 ? num : num * 1000;
-                    }
-                }
+            if (record && (record.timestamp || record.time || record.ts)) {
+                const val = parseInt(record.timestamp || record.time || record.ts);
+                if (!isNaN(val)) return val > 9999999999 ? val : val * 1000;
             }
             if (key && key.startsWith('-') && key.length >= 8) {
                 try {
@@ -240,8 +144,80 @@
                 const data = snapshot.val();
                 if (!data) return;
 
-                rawSensorData = data;
-                sortedTimestamps = Object.keys(data).sort();
-                if (sortedTimestamps.length === 0) return;
+                const tsKeys = Object.keys(data).sort();
+                if (tsKeys.length === 0) return;
 
-                const latestKey = sorted
+                const latestKey = tsKeys[tsKeys.length - 1];
+                const latestRecord = data[latestKey];
+                if (!latestRecord) return;
+                
+                // Safe extraction of the true Unix Epoch Milliseconds
+                const latestTsMs = getTimestampMs(latestKey, latestRecord);
+                const now = new Date(latestTsMs);
+                
+                // Header Info
+                document.getElementById('live-date').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+                document.getElementById('last-sync').innerText = "Last Update: " + now.toLocaleTimeString();
+
+                // Values (Safely mapping direct string key references with property fallbacks)
+                document.getElementById('eco2-now').innerText = latestRecord.eco2 !== undefined ? latestRecord.eco2 : '--';
+                document.getElementById('tvoc-now').innerText = latestRecord.tvoc !== undefined ? latestRecord.tvoc : '--';
+
+                // Millisecond-based Delta Metrics calculations (1 Hr = 3600000ms, 24 Hr = 86400000ms)
+                updateUI('eco2-1h', latestRecord.eco2, findNearest(data, tsKeys, latestTsMs - 3600000, 'eco2'));
+                updateUI('eco2-24h', latestRecord.eco2, findNearest(data, tsKeys, latestTsMs - 86400000, 'eco2'));
+                updateUI('tvoc-1h', latestRecord.tvoc, findNearest(data, tsKeys, latestTsMs - 3600000, 'tvoc'));
+                updateUI('tvoc-24h', latestRecord.tvoc, findNearest(data, tsKeys, latestTsMs - 86400000, 'tvoc'));
+
+                // Graph Updates (Last 40 readings)
+                const labels = [], g_eco2 = [], g_tvoc = [], g_temp = [], g_hum = [];
+                tsKeys.slice(-40).forEach(k => {
+                    const item = data[k];
+                    const itemTsMs = getTimestampMs(k, item);
+                    
+                    labels.push(new Date(itemTsMs).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+                    g_eco2.push(item.eco2 !== undefined ? item.eco2 : null);
+                    g_tvoc.push(item.tvoc !== undefined ? item.tvoc : null);
+                    g_temp.push(item.temp !== undefined ? item.temp : null);
+                    g_hum.push(item.hum !== undefined ? item.hum : null);
+                });
+
+                // Update Gas Chart
+                gasChart.data.labels = labels;
+                gasChart.data.datasets[0].data = g_eco2;
+                gasChart.data.datasets[1].data = g_tvoc;
+                gasChart.update();
+
+                // Update Temp/Hum Chart
+                thChart.data.labels = labels;
+                thChart.data.datasets[0].data = g_temp;
+                thChart.data.datasets[1].data = g_hum;
+                thChart.update();
+
+            } catch (err) {
+                console.error("Critical loading error intercepted safely: ", err);
+            }
+        });
+
+        function findNearest(data, keys, targetTsMs, type) {
+            for (let i = keys.length - 1; i >= 0; i--) {
+                const k = keys[i];
+                const currentTsMs = getTimestampMs(k, data[k]);
+                if (currentTsMs <= targetTsMs) {
+                    if (data[k] && data[k][type] !== undefined) return data[k][type];
+                }
+            }
+            return null;
+        }
+
+        function updateUI(id, current, past) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (past === null || current === undefined || current === null) { el.innerText = "---"; return; }
+            const diff = ((current - past) / past) * 100;
+            const absDiff = Math.abs(diff).toFixed(1);
+            el.innerHTML = diff <= 0 ? `<span class="improvement">↓ ${absDiff}%</span>` : `<span class="decline">↑ ${absDiff}%</span>`;
+        }
+    </script>
+</body>
+</html>
