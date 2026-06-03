@@ -13,10 +13,10 @@
         #live-date { font-size: 0.9rem; color: #666; margin-top: 5px; font-weight: 500; }
         .update-badge { background: #e8f0fe; color: #1a73e8; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; margin-top: 8px; border: 1px solid #d2e3fc; }
 
-        .section-title { font-size: 1.2rem; font-weight: 700; margin: 30px 0 15px 0; color: #2c3e50; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+        .section-title { font-size: 1.1rem; font-weight: 700; margin: 30px 0 15px 0; color: #2c3e50; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
         .section-title::after { content: ''; flex: 1; height: 1px; background: #ddd; }
 
-        .metrics-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .metrics-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); }
         .current-val { font-size: 2.5rem; font-weight: 800; margin: 5px 0; }
         
@@ -69,3 +69,242 @@
                 <div class="comparison-row">
                     <div class="comp-item"><span class="label">1H Change</span><div id="eco2-1h">--</div></div>
                     <div class="comp-item" style="border-left:1px solid #eee"><span class="label">24H Change</span><div id="eco2-24h">--</div></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="color: #36a2eb; margin: 0; font-size: 1rem;">TVOC (ppb)</h3>
+                <div id="tvoc-now" class="current-val">--</div>
+                <div class="comparison-row">
+                    <div class="comp-item"><span class="label">1H Change</span><div id="tvoc-1h">--</div></div>
+                    <div class="comp-item" style="border-left:1px solid #eee"><span class="label">24H Change</span><div id="tvoc-24h">--</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">Microalgae Cultivation Performance</div>
+        <div class="impact-container">
+            <div class="impact-card eco2">
+                <h3 style="color: #2e7d32; margin: 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">eCO2 Net Performance</h3>
+                <div id="algae-eco2-impact" class="impact-headline">Calculating...</div>
+                <div class="impact-grid">
+                    <div><span class="label">Pre-Algae Avg</span><strong id="pre-algae-eco2">--</strong></div>
+                    <div><span class="label">Post-Algae Avg</span><strong id="post-algae-eco2">--</strong></div>
+                </div>
+            </div>
+            <div class="impact-card tvoc">
+                <h3 style="color: #1565c0; margin: 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">TVOC Net Performance</h3>
+                <div id="algae-tvoc-impact" class="impact-headline">Calculating...</div>
+                <div class="impact-grid">
+                    <div><span class="label">Pre-Algae Avg</span><strong id="pre-algae-tvoc">--</strong></div>
+                    <div><span class="label">Post-Algae Avg</span><strong id="post-algae-tvoc">--</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">Real-Time Trends</div>
+        <div class="charts-grid">
+            <div class="chart-box">
+                <canvas id="gasChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <canvas id="thChart"></canvas>
+            </div>
+        </div>
+
+        <div class="section-title">Day-over-Day Stacked Comparison</div>
+        <div class="controls-panel">
+            <div class="control-group">
+                <label for="metricSelect">Target Parameter</label>
+                <select id="metricSelect">
+                    <option value="eco2">eCO2 (ppm)</option>
+                    <option value="tvoc">TVOC (ppb)</option>
+                    <option value="temp">Temperature (°C)</option>
+                    <option value="hum">Humidity (%)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="date1">Baseline Day (Day 1)</label>
+                <input type="date" id="date1">
+            </div>
+            <div class="control-group">
+                <label for="date2">Comparison Day (Day 2)</label>
+                <input type="date" id="date2">
+            </div>
+        </div>
+        <div class="charts-grid">
+            <div class="chart-box full-width-chart">
+                <canvas id="compareChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAtjeTLHgn9_Hq8inNTLv74dNb8mjWLXT4",
+            authDomain: "liquid-tree.firebaseapp.com",
+            projectId: "liquid-tree",
+            databaseURL: "https://liquid-tree-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            storageBucket: "liquid-tree.firebasestorage.app",
+            messagingSenderId: "64119648120",
+            appId: "1:64119648120:web:75c8784c14e996019ba28d"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Global State Containers
+        let rawSensorData = null;
+        let sortedTimestamps = [];
+
+        // Microalgae Introduction Milestone: May 4, 2026, 15:00 PM Local Time
+        const ALGAE_SWITCH_TIMESTAMP = Math.floor(new Date('2026-05-04T15:00:00').getTime() / 1000);
+
+        // Chart 1: Real-time Gas Concentration Trends
+        const gasChart = new Chart(document.getElementById('gasChart').getContext('2d'), {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'eCO2', borderColor: '#ff6384', backgroundColor: 'rgba(255,99,132,0.05)', fill: true, data: [], yAxisID: 'y', tension: 0.4, pointRadius: 0 },
+                { label: 'TVOC', borderColor: '#36a2eb', backgroundColor: 'rgba(54,162,235,0.05)', fill: true, data: [], yAxisID: 'y1', tension: 0.4, pointRadius: 0 }
+            ]},
+            options: { maintainAspectRatio: false, plugins: { title: { display: true, text: 'Gas Concentration Trends' } }, scales: { 
+                y: { position: 'left', title: { display: true, text: 'ppm' } },
+                y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'ppb' } }
+            }}
+        });
+
+        // Chart 2: Real-time Ambient Conditions
+        const thChart = new Chart(document.getElementById('thChart').getContext('2d'), {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'Temp (°C)', borderColor: '#ff9f40', data: [], tension: 0.4, pointRadius: 0 },
+                { label: 'Hum (%)', borderColor: '#4bc0c0', data: [], tension: 0.4, pointRadius: 0 }
+            ]},
+            options: { maintainAspectRatio: false, plugins: { title: { display: true, text: 'Temperature & Humidity' } }, scales: { 
+                y: { title: { display: true, text: 'Value' } }
+            }}
+        });
+
+        // Chart 3: Historical Overlay Comparison
+        const compareChart = new Chart(document.getElementById('compareChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00'),
+                datasets: [
+                    { label: 'Day 1 (Select Date)', borderColor: '#9b59b6', backgroundColor: 'rgba(155,89,182,0.05)', data: Array(24).fill(null), tension: 0.3, spanGaps: true },
+                    { label: 'Day 2 (Select Date)', borderColor: '#2ecc71', backgroundColor: 'rgba(46,204,113,0.05)', data: Array(24).fill(null), tension: 0.3, spanGaps: true }
+                ]
+            },
+            options: { 
+                maintainAspectRatio: false, 
+                plugins: { title: { display: true, text: 'Stacked Hourly Trend Analysis Comparison' } },
+                scales: { y: { title: { display: true, text: 'Value' } } }
+            }
+        });
+
+        const sensorRef = ref(db, 'env_monitor');
+
+        onValue(sensorRef, (snapshot) => {
+            try {
+                const data = snapshot.val();
+                if (!data) return;
+
+                rawSensorData = data;
+                sortedTimestamps = Object.keys(data).sort();
+                if (sortedTimestamps.length === 0) return;
+
+                const latestTs = parseInt(sortedTimestamps[sortedTimestamps.length - 1]);
+                const latestRecord = data[latestTs];
+                if (!latestRecord) return;
+                
+                // Header Details
+                const now = new Date(latestTs * 1000);
+                document.getElementById('live-date').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+                document.getElementById('last-sync').innerText = "Last Update: " + now.toLocaleTimeString();
+
+                // Current Numerical Values
+                if (latestRecord.eco2 !== undefined) document.getElementById('eco2-now').innerText = latestRecord.eco2;
+                if (latestRecord.tvoc !== undefined) document.getElementById('tvoc-now').innerText = latestRecord.tvoc;
+
+                // Live Standard Delta Calculations
+                updateUI('eco2-1h', latestRecord.eco2, findNearest(data, sortedTimestamps, latestTs - 3600, 'eco2'));
+                updateUI('eco2-24h', latestRecord.eco2, findNearest(data, sortedTimestamps, latestTs - 86400, 'eco2'));
+                updateUI('tvoc-1h', latestRecord.tvoc, findNearest(data, sortedTimestamps, latestTs - 3600, 'tvoc'));
+                updateUI('tvoc-24h', latestRecord.tvoc, findNearest(data, sortedTimestamps, latestTs - 86400, 'tvoc'));
+
+                // Process Latest Waveform Buffers (Last 40 items)
+                const labels = [], g_eco2 = [], g_tvoc = [], g_temp = [], g_hum = [];
+                sortedTimestamps.slice(-40).forEach(k => {
+                    labels.push(new Date(k * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+                    g_eco2.push(data[k].eco2 || null);
+                    g_tvoc.push(data[k].tvoc || null);
+                    g_temp.push(data[k].temp || null);
+                    g_hum.push(data[k].hum || null);
+                });
+
+                // Render Live Diagnostics Graphs
+                gasChart.data.labels = labels;
+                gasChart.data.datasets[0].data = g_eco2;
+                gasChart.data.datasets[1].data = g_tvoc;
+                gasChart.update();
+
+                thChart.data.labels = labels;
+                thChart.data.datasets[0].data = g_temp;
+                thChart.data.datasets[1].data = g_hum;
+                thChart.update();
+
+                // Run Analysis Tasks
+                processAlgaePerformance();
+                renderDayComparison();
+
+            } catch (err) {
+                console.error("Data tracking error handled safely: ", err);
+            }
+        });
+
+        function findNearest(data, keys, target, type) {
+            for (let i = keys.length - 1; i >= 0; i--) {
+                if (parseInt(keys[i]) <= target && data[keys[i]][type] !== undefined) {
+                    return data[keys[i]][type];
+                }
+            }
+            return null;
+        }
+
+        function updateUI(id, current, past) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (past === null || current === undefined) { el.innerText = "---"; return; }
+            const diff = ((current - past) / past) * 100;
+            const absDiff = Math.abs(diff).toFixed(1);
+            el.innerHTML = diff <= 0 ? `<span class="improvement">↓ ${absDiff}%</span>` : `<span class="decline">↑ ${absDiff}%</span>`;
+        }
+
+        function processAlgaePerformance() {
+            let preEco2Sum = 0, preTvocSum = 0, preCount = 0;
+            let postEco2Sum = 0, postTvocSum = 0, postCount = 0;
+
+            sortedTimestamps.forEach(key => {
+                const ts = parseInt(key);
+                const item = rawSensorData[key];
+                if (ts < ALGAE_SWITCH_TIMESTAMP) {
+                    if (item.eco2 !== undefined) { preEco2Sum += item.eco2; preCount++; }
+                    if (item.tvoc !== undefined) { preTvocSum += item.tvoc; }
+                } else {
+                    if (item.eco2 !== undefined) { postEco2Sum += item.eco2; postCount++; }
+                    if (item.tvoc !== undefined) { postTvocSum += item.tvoc; }
+                }
+            });
+
+            if (preCount > 0 && postCount > 0) {
+                const preEco2Avg = preEco2Sum / preCount;
+                const preTvocAvg = preTvocSum / preCount;
+                const postEco2Avg = postEco2Sum / postCount;
+                const postTvocAvg = postTvocSum / postCount;
+
+                document.getElementById('pre-algae-eco2').innerText = preEco2Avg.toFixed(1) + " ppm";
+                document.getElementById('post-algae-eco2').innerText = postEco2Avg.toFixed(1) + " ppm";
+                document.getElementById('pre-algae-tvoc').innerText = preTvocAvg.toFixed(1
