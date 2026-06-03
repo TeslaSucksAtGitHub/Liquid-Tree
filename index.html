@@ -114,96 +114,75 @@
             }}
         });
 
-        // Safe parser for alphanumeric Push IDs and variable Unix Timestamps
-        function getTimestampMs(key, record) {
-            if (/^\d+$/.test(key)) {
-                const num = parseInt(key);
-                return num > 9999999999 ? num : num * 1000;
-            }
-            if (record && (record.timestamp || record.time || record.ts)) {
-                const val = parseInt(record.timestamp || record.time || record.ts);
-                if (!isNaN(val)) return val > 9999999999 ? val : val * 1000;
-            }
-            if (key && key.startsWith('-') && key.length >= 8) {
-                try {
-                    const PUSH_CHARS = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
-                    let time = 0;
-                    for (let i = 0; i < 8; i++) {
-                        time = time * 64 + PUSH_CHARS.indexOf(key.charAt(i));
-                    }
-                    return time;
-                } catch (e) {}
-            }
-            return Date.now();
-        }
-
         const sensorRef = ref(db, 'env_monitor');
 
         onValue(sensorRef, (snapshot) => {
-            try {
-                const data = snapshot.val();
-                if (!data) return;
+            const data = snapshot.val();
+            if (!data) return;
 
-                const tsKeys = Object.keys(data).sort();
-                if (tsKeys.length === 0) return;
+            const tsKeys = Object.keys(data).sort();
+            if (tsKeys.length === 0) return;
 
-                const latestKey = tsKeys[tsKeys.length - 1];
-                const latestRecord = data[latestKey];
-                if (!latestRecord) return;
+            // Direct key usage avoids map lookup type failures
+            const latestKey = tsKeys[tsKeys.length - 1];
+            const latestRecord = data[latestKey];
+            if (!latestRecord) return;
+
+            const latestTs = parseInt(latestKey);
+            // Safe Check: Detect if keys are seconds (10 digits) or milliseconds (13 digits)
+            const isMs = latestTs > 9999999999;
+            const now = new Date(isMs ? latestTs : latestTs * 1000);
+            
+            // Header Info
+            document.getElementById('live-date').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            document.getElementById('last-sync').innerText = "Last Update: " + now.toLocaleTimeString();
+
+            // Values
+            document.getElementById('eco2-now').innerText = latestRecord.eco2 !== undefined ? latestRecord.eco2 : '--';
+            document.getElementById('tvoc-now').innerText = latestRecord.tvoc !== undefined ? latestRecord.tvoc : '--';
+
+            // Custom offsets depending on time metrics used in database keys
+            const hourOffset = isMs ? 3600000 : 3600;
+            const dayOffset = isMs ? 86400000 : 86400;
+
+            // Comparisons
+            updateUI('eco2-1h', latestRecord.eco2, findNearest(data, tsKeys, latestTs - hourOffset, 'eco2'));
+            updateUI('eco2-24h', latestRecord.eco2, findNearest(data, tsKeys, latestTs - dayOffset, 'eco2'));
+            updateUI('tvoc-1h', latestRecord.tvoc, findNearest(data, tsKeys, latestTs - hourOffset, 'tvoc'));
+            updateUI('tvoc-24h', latestRecord.tvoc, findNearest(data, tsKeys, latestTs - dayOffset, 'tvoc'));
+
+            // Graph Updates (Last 40 readings)
+            const labels = [], g_eco2 = [], g_tvoc = [], g_temp = [], g_hum = [];
+            tsKeys.slice(-40).forEach(k => {
+                const item = data[k];
+                if (!item) return;
+                const t = parseInt(k);
+                const itemDate = new Date(isMs ? t : t * 1000);
                 
-                // Safe extraction of the true Unix Epoch Milliseconds
-                const latestTsMs = getTimestampMs(latestKey, latestRecord);
-                const now = new Date(latestTsMs);
-                
-                // Header Info
-                document.getElementById('live-date').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-                document.getElementById('last-sync').innerText = "Last Update: " + now.toLocaleTimeString();
+                labels.push(itemDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+                g_eco2.push(item.eco2 !== undefined ? item.eco2 : null);
+                g_tvoc.push(item.tvoc !== undefined ? item.tvoc : null);
+                g_temp.push(item.temp !== undefined ? item.temp : null);
+                g_hum.push(item.hum !== undefined ? item.hum : null);
+            });
 
-                // Values (Safely mapping direct string key references with property fallbacks)
-                document.getElementById('eco2-now').innerText = latestRecord.eco2 !== undefined ? latestRecord.eco2 : '--';
-                document.getElementById('tvoc-now').innerText = latestRecord.tvoc !== undefined ? latestRecord.tvoc : '--';
+            // Update Gas Chart
+            gasChart.data.labels = labels;
+            gasChart.data.datasets[0].data = g_eco2;
+            gasChart.data.datasets[1].data = g_tvoc;
+            gasChart.update();
 
-                // Millisecond-based Delta Metrics calculations (1 Hr = 3600000ms, 24 Hr = 86400000ms)
-                updateUI('eco2-1h', latestRecord.eco2, findNearest(data, tsKeys, latestTsMs - 3600000, 'eco2'));
-                updateUI('eco2-24h', latestRecord.eco2, findNearest(data, tsKeys, latestTsMs - 86400000, 'eco2'));
-                updateUI('tvoc-1h', latestRecord.tvoc, findNearest(data, tsKeys, latestTsMs - 3600000, 'tvoc'));
-                updateUI('tvoc-24h', latestRecord.tvoc, findNearest(data, tsKeys, latestTsMs - 86400000, 'tvoc'));
-
-                // Graph Updates (Last 40 readings)
-                const labels = [], g_eco2 = [], g_tvoc = [], g_temp = [], g_hum = [];
-                tsKeys.slice(-40).forEach(k => {
-                    const item = data[k];
-                    const itemTsMs = getTimestampMs(k, item);
-                    
-                    labels.push(new Date(itemTsMs).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
-                    g_eco2.push(item.eco2 !== undefined ? item.eco2 : null);
-                    g_tvoc.push(item.tvoc !== undefined ? item.tvoc : null);
-                    g_temp.push(item.temp !== undefined ? item.temp : null);
-                    g_hum.push(item.hum !== undefined ? item.hum : null);
-                });
-
-                // Update Gas Chart
-                gasChart.data.labels = labels;
-                gasChart.data.datasets[0].data = g_eco2;
-                gasChart.data.datasets[1].data = g_tvoc;
-                gasChart.update();
-
-                // Update Temp/Hum Chart
-                thChart.data.labels = labels;
-                thChart.data.datasets[0].data = g_temp;
-                thChart.data.datasets[1].data = g_hum;
-                thChart.update();
-
-            } catch (err) {
-                console.error("Critical loading error intercepted safely: ", err);
-            }
+            // Update Temp/Hum Chart
+            thChart.data.labels = labels;
+            thChart.data.datasets[0].data = g_temp;
+            thChart.data.datasets[1].data = g_hum;
+            thChart.update();
         });
 
-        function findNearest(data, keys, targetTsMs, type) {
+        function findNearest(data, keys, target, type) {
             for (let i = keys.length - 1; i >= 0; i--) {
                 const k = keys[i];
-                const currentTsMs = getTimestampMs(k, data[k]);
-                if (currentTsMs <= targetTsMs) {
+                if (parseInt(k) <= target) {
                     if (data[k] && data[k][type] !== undefined) return data[k][type];
                 }
             }
