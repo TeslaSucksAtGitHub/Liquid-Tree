@@ -160,7 +160,7 @@
         let databaseCachedBackup = null;
         let databaseIsMsFormat = false;
 
-        // UPDATED MILESTONE DATE: June 2nd, 2026 at 15:00:00
+        // MILESTONE DATE: June 2nd, 2026 at 15:00:00
         const ALGAE_MILESTONE_MS = new Date('2026-06-02T15:00:00').getTime();
 
         // Advanced UI: Vertical Hover Line Plugin
@@ -329,6 +329,7 @@
 
             keys.forEach(k => {
                 const item = data[k];
+                if (!item) return;
                 const tsRaw = parseInt(k);
                 const tsMs = databaseIsMsFormat ? tsRaw : tsRaw * 1000;
 
@@ -372,7 +373,7 @@
 
             Object.keys(databaseCachedBackup).forEach(k => {
                 const item = databaseCachedBackup[k];
-                if (item[metric] === undefined) return;
+                if (!item || item[metric] === undefined) return;
 
                 const tsRaw = parseInt(k);
                 const itemDate = new Date(databaseIsMsFormat ? tsRaw : tsRaw * 1000);
@@ -421,7 +422,7 @@
             return null;
         }
 
-        UX: Realtime UI formatting updates
+        // UX: Realtime UI formatting updates
         function updateUI(id, current, past) {
             const el = document.getElementById(id);
             if (!el) return;
